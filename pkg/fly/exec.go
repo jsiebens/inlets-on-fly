@@ -39,7 +39,7 @@ func Deploy(cwd string) error {
 	task := execute.ExecTask{
 		Cwd:         cwd,
 		Command:     "flyctl",
-		Args:        []string{"deploy", "--remote-only"},
+		Args:        []string{"deploy"},
 		StreamStdio: true,
 	}
 	return check(task.Execute())
