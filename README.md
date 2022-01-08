@@ -15,49 +15,48 @@ inlets-on-fly is actually a little wrapper around flyctl, so make sure you have 
 ## example
 
 ``` bash
-$ inlets-on-fly create --region ams --ports 8080:80,8080:443,5432:10032
-Temp dir name: /tmp/inletsfly-885552054
+$ inlets-on-fly create tcp --region ams --ports 5432,6379
+Temp dir name: /tmp/inletsfly-486952897
 
-Selected App Name: vast-goblin-6527
+Selected App Name: enjoyed-goldfish-6269
 
 
-New app created: vast-goblin-6527
+New app created: enjoyed-goldfish-6269
 Region Pool: 
 ams
 Backup Region: 
 fra
 lhr
 Secrets are staged for the first deployment
-Deploying vast-goblin-6527
+Deploying enjoyed-goldfish-6269
 ==> Validating app configuration
 --> Validating app configuration done
 Services
-TCP 10023 ⇢ 8123
-TCP 10032 ⇢ 5432
-TCP 80/443 ⇢ 8080
-Waiting for remote builder fly-builder-crimson-dust-9853...
+TCP 8123 ⇢ 8123
+TCP 5432 ⇢ 5432
+TCP 6379 ⇢ 6379
 ==> Creating build context
 --> Creating build context done
 ==> Building image with Docker
---> docker host: 20.10.8 linux x86_64
-Sending build context to Docker daemon     422B
+--> docker host: 20.10.7 linux x86_64
+Sending build context to Docker daemon  3.072kB
 Step 1/2 : FROM ghcr.io/inlets/inlets-pro:0.9.1
  ---> 68840e710735
-Step 2/2 : CMD ["tcp", "server", "--auto-tls-san=vast-goblin-6527.fly.dev", "--token-env=TOKEN"]
- ---> Running in c148498ae9b3
- ---> 39a98585fc9b
-Successfully built 39a98585fc9b
-Successfully tagged registry.fly.io/vast-goblin-6527:deployment-1636030837
+Step 2/2 : CMD ["tcp", "server", "--auto-tls-san=enjoyed-goldfish-6269.fly.dev", "--token-env=TOKEN"]
+ ---> Running in 16d95f141336
+ ---> a1b634947187
+Successfully built a1b634947187
+Successfully tagged registry.fly.io/enjoyed-goldfish-6269:deployment-1641658112
 --> Building image done
 ==> Pushing image to fly
-The push refers to repository [registry.fly.io/vast-goblin-6527]
+The push refers to repository [registry.fly.io/enjoyed-goldfish-6269]
 8345a2e5488b: Preparing
 c0d270ab7e0d: Preparing
-8345a2e5488b: Mounted from amused-stag-5259
-c0d270ab7e0d: Mounted from amused-stag-5259
-deployment-1636030837: digest: sha256:5f0d03afb7044731670ba0cd1e20fa5793b4f4d286997b6aea51cb6d5879545c size: 738
+c0d270ab7e0d: Mounted from grand-tortoise-6149
+8345a2e5488b: Mounted from grand-tortoise-6149
+deployment-1641658112: digest: sha256:9cfddad45c6b112714e8c607219ed1907e14d4a5dc5611d6dc4d07f402bf9507 size: 738
 --> Pushing image done
-Image: registry.fly.io/vast-goblin-6527:deployment-1636030837
+Image: registry.fly.io/enjoyed-goldfish-6269:deployment-1641658112
 Image size: 19 MB
 ==> Creating release
 Release v2 created
@@ -66,29 +65,32 @@ You can detach the terminal anytime without stopping the deployment
 Monitoring Deployment
 
 v0 is being deployed
-ad3148e3: ams running healthy [health checks: 1 total, 1 passing]
+c7a5572c: ams pending
+c7a5572c: ams running unhealthy [health checks: 1 total]
+c7a5572c: ams running healthy [health checks: 1 total, 1 passing]
 --> v0 deployed successfully
 ==================================================================
-inlets PRO TCP (vast-goblin-6527) server summary:
+inlets PRO TCP (enjoyed-goldfish-6269) server summary:
 
-  URL: wss://vast-goblin-6527.fly.dev:10023/connect
-  Auth-token: XuGk0bSsLuf9q3Q2gDcydohXUyOwuwyl1WzU3ep4KkpLA9cjWh0MLpNEtdWEP9ra
+  URL: wss://enjoyed-goldfish-6269.fly.dev:8123/connect
+  Auth-token: aDdfDfl5uu4pmYzTxG066uLcosnkyyF27OQFCryZTWaAA2r8qCTbob8CErCnJOYm
 
 Command:
 
 # Obtain a license at https://inlets.dev
 # Store it at $HOME/.inlets/LICENSE or use --help for more options
 
-export PORTS="5432,8080,"
+
+export PORTS="5432,6379,"
 export UPSTREAM="localhost"
 
 inlets-pro tcp client \
-  --url wss://vast-goblin-6527.fly.dev:10023/connect \
-  --token XuGk0bSsLuf9q3Q2gDcydohXUyOwuwyl1WzU3ep4KkpLA9cjWh0MLpNEtdWEP9ra \
+  --url wss://enjoyed-goldfish-6269.fly.dev:8123 \
+  --token aDdfDfl5uu4pmYzExG066uLcosnkyRF27OQFCryZTWaAA2r8qCTbob8CErCnJOYm \
   --upstream $UPSTREAM \
   --ports $PORTS
 
-To delete:
-  flyctl destroy vast-goblin-6527
 
+To delete:
+  flyctl destroy enjoyed-goldfish-6269
 ```
