@@ -11,6 +11,6 @@ type App struct {
 }
 
 type Ports struct {
-	InternalPort  int
-	ExternalPorts []int
+	InternalPort  uint
+	ExternalPorts []uint
 }

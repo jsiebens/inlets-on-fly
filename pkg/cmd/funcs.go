@@ -6,40 +6,12 @@ import (
 	"github.com/jsiebens/inlets-on-fly/pkg/templates"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 )
 
-func parsePorts(values []string) ([]Ports, error) {
-	var raw = map[int][]int{}
-
+func parsePorts(values []uint) ([]Ports, error) {
+	var ports []Ports
 	for _, p := range values {
-		parts := strings.Split(p, ":")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid value for port: %s", p)
-		}
-
-		internalPort, err := strconv.Atoi(parts[0])
-		if err != nil {
-			return nil, err
-		}
-
-		externalPort, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return nil, err
-		}
-
-		externalPorts, ok := raw[internalPort]
-		if !ok {
-			raw[internalPort] = []int{externalPort}
-		} else {
-			raw[internalPort] = append(externalPorts, externalPort)
-		}
-	}
-
-	var ports = []Ports{}
-	for i, e := range raw {
-		ports = append(ports, Ports{InternalPort: i, ExternalPorts: e})
+		ports = append(ports, Ports{InternalPort: p, ExternalPorts: []uint{p}})
 	}
 	return ports, nil
 }

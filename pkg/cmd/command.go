@@ -45,7 +45,7 @@ func createHttpServerCommand() *cobra.Command {
 	command.Flags().StringVar(&region, "region", "", "")
 
 	command.RunE = func(command *cobra.Command, args []string) error {
-		configuredPorts := []Ports{{InternalPort: 8000, ExternalPorts: []int{80, 443}}}
+		configuredPorts := []Ports{{InternalPort: 8000, ExternalPorts: []uint{80, 443}}}
 
 		if name == "" {
 			name = names.GetRandomName()
@@ -81,12 +81,12 @@ func createTcpServerCommand() *cobra.Command {
 	var name string
 	var org string
 	var region string
-	var ports []string
+	var ports []uint
 
 	command.Flags().StringVar(&name, "name", "", "")
 	command.Flags().StringVar(&org, "org", "personal", "")
 	command.Flags().StringVar(&region, "region", "", "")
-	command.Flags().StringSliceVar(&ports, "ports", []string{"8000:80", "8000:443"}, "")
+	command.Flags().UintSliceVar(&ports, "ports", []uint{}, "")
 
 	command.RunE = func(command *cobra.Command, args []string) error {
 		configuredPorts, err := parsePorts(ports)

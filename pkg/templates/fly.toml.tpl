@@ -4,7 +4,7 @@ app = "{{.Name}}"
   protocol = "tcp"
   [[services.ports]]
     handlers = []
-    port = 10023
+    port = 8123
   [[services.tcp_checks]]
     grace_period = "1s"
     interval = "15s"
