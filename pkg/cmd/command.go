@@ -1,14 +1,20 @@
 package cmd
 
 import (
+	"fmt"
+	cp "github.com/inlets/cloud-provision/provision"
 	"github.com/jsiebens/inlets-on-fly/pkg/names"
+	"github.com/jsiebens/inlets-on-fly/pkg/provision"
 	"github.com/sethvargo/go-password/password"
 	"github.com/spf13/cobra"
+	"os"
+	"time"
 )
 
 func Execute() error {
 	rootCmd := rootCommand()
 	rootCmd.AddCommand(createCommand())
+	rootCmd.AddCommand(deleteCommand())
 	rootCmd.AddCommand(versionCommand())
 	return rootCmd.Execute()
 }
@@ -21,18 +27,7 @@ func rootCommand() *cobra.Command {
 
 func createCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use: "create",
-	}
-
-	command.AddCommand(createTcpServerCommand())
-	command.AddCommand(createHttpServerCommand())
-
-	return command
-}
-
-func createHttpServerCommand() *cobra.Command {
-	command := &cobra.Command{
-		Use:          "http",
+		Use:          "create",
 		SilenceUsage: true,
 	}
 
@@ -41,79 +36,119 @@ func createHttpServerCommand() *cobra.Command {
 	var region string
 
 	command.Flags().StringVar(&name, "name", "", "")
-	command.Flags().StringVar(&org, "org", "personal", "")
-	command.Flags().StringVar(&region, "region", "", "")
+	command.Flags().StringVar(&org, "org", "", "")
+	command.Flags().StringVar(&region, "region", "ams", "")
 
 	command.RunE = func(command *cobra.Command, args []string) error {
-		configuredPorts := []Ports{{InternalPort: 8000, ExternalPorts: []uint{80, 443}}}
-
-		if name == "" {
-			name = names.GetRandomName()
-		}
+		apiToken := os.Getenv("FLY_API_TOKEN")
+		inletsVersion := "0.9.9"
 
 		token, err := password.Generate(64, 10, 0, false, true)
 		if err != nil {
 			return err
 		}
 
-		app := App{
-			Mode:          "http",
-			InletsVersion: "0.9.1",
-			Name:          name,
-			Org:           org,
-			Region:        region,
-			Token:         token,
-			Ports:         configuredPorts,
+		hostReq := &cp.BasicHost{
+			Region: region,
+			Name:   names.GetRandomName(),
+			Additional: map[string]string{
+				"inlets-token":   token,
+				"inlets-version": inletsVersion,
+			},
 		}
 
-		return createApp(&app)
+		provisioner, err := provision.NewFlyProvisioner(apiToken, org, region)
+		if err != nil {
+			return err
+		}
+		defer provisioner.Close()
+
+		hostRes, err := provisioner.Provision(*hostReq)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Host: %s, status: %s\n", hostRes.ID, hostRes.Status)
+
+		poll := time.Second * 2
+		max := 500
+		for i := 0; i < max; i++ {
+			time.Sleep(poll)
+
+			hostStatus, err := provisioner.Status(hostRes.ID)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("[%d/%d] Host: %s, status: %s\n",
+				i+1, max, hostStatus.ID, hostStatus.Status)
+
+			if hostStatus.Status == "active" {
+
+				fmt.Printf(`inlets Pro HTTPS (%s) server summary:
+  IP: %s
+  HTTPS Domains: %v
+  Auth-token: %s
+
+Command:
+
+# Obtain a license at https://inlets.dev/pricing
+# Store it at $HOME/.inlets/LICENSE or use --help for more options
+
+# Where to route traffic from the inlets server
+export UPSTREAM="http://127.0.0.1:8000"
+
+inlets-pro http client --url "wss://%s:%d" \
+--token "%s" \
+--upstream $UPSTREAM
+
+To delete:
+  inlets-on-fly delete --id "%s"
+`,
+					inletsVersion,
+					hostStatus.IP,
+					fmt.Sprintf("%s.fly.dev", name),
+					token,
+					hostStatus.IP,
+					8123,
+					token,
+					hostStatus.ID)
+
+				return nil
+			}
+		}
+
+		return nil
 	}
 
 	return command
 }
 
-func createTcpServerCommand() *cobra.Command {
+func deleteCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:          "tcp",
-		SilenceUsage: true,
+		Use: "delete",
 	}
 
-	var name string
+	var id string
 	var org string
 	var region string
-	var ports []uint
 
-	command.Flags().StringVar(&name, "name", "", "")
-	command.Flags().StringVar(&org, "org", "personal", "")
-	command.Flags().StringVar(&region, "region", "", "")
-	command.Flags().UintSliceVar(&ports, "ports", []uint{}, "")
+	command.Flags().StringVar(&id, "id", "", "")
+	command.Flags().StringVar(&org, "org", "", "")
+	command.Flags().StringVar(&region, "region", "ams", "")
 
 	command.RunE = func(command *cobra.Command, args []string) error {
-		configuredPorts, err := parsePorts(ports)
-		if err != nil {
-			return nil
-		}
+		apiToken := os.Getenv("FLY_API_TOKEN")
 
-		if name == "" {
-			name = names.GetRandomName()
-		}
-
-		token, err := password.Generate(64, 10, 0, false, true)
+		provisioner, err := provision.NewFlyProvisioner(apiToken, org, region)
 		if err != nil {
 			return err
 		}
+		defer provisioner.Close()
 
-		app := App{
-			Mode:          "tcp",
-			InletsVersion: "0.9.1",
-			Name:          name,
-			Org:           org,
-			Region:        region,
-			Token:         token,
-			Ports:         configuredPorts,
-		}
+		request := cp.HostDeleteRequest{ID: id}
 
-		return createApp(&app)
+		return provisioner.Delete(request)
 	}
 
 	return command
