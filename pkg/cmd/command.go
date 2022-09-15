@@ -31,6 +31,7 @@ func createCommand() *cobra.Command {
 		SilenceUsage: true,
 	}
 
+	var apiToken string
 	var name string
 	var org string
 	var region string
@@ -38,10 +39,19 @@ func createCommand() *cobra.Command {
 	command.Flags().StringVar(&name, "name", "", "")
 	command.Flags().StringVar(&org, "org", "", "")
 	command.Flags().StringVar(&region, "region", "ams", "")
+	command.Flags().StringVar(&apiToken, "api-token", "", "")
 
 	command.RunE = func(command *cobra.Command, args []string) error {
-		apiToken := os.Getenv("FLY_API_TOKEN")
 		inletsVersion := "0.9.9"
+
+		if apiToken == "" {
+			apiToken = os.Getenv("FLY_API_TOKEN")
+		}
+
+		if apiToken == "" {
+			fmt.Println("give a value --api-token or set the environment variable \"FLY_API_TOKEN\"")
+			return nil
+		}
 
 		token, err := password.Generate(64, 10, 0, false, true)
 		if err != nil {
@@ -129,6 +139,7 @@ func deleteCommand() *cobra.Command {
 		Use: "delete",
 	}
 
+	var apiToken string
 	var id string
 	var org string
 	var region string
@@ -136,9 +147,17 @@ func deleteCommand() *cobra.Command {
 	command.Flags().StringVar(&id, "id", "", "")
 	command.Flags().StringVar(&org, "org", "", "")
 	command.Flags().StringVar(&region, "region", "ams", "")
+	command.Flags().StringVar(&apiToken, "api-token", "", "")
 
 	command.RunE = func(command *cobra.Command, args []string) error {
-		apiToken := os.Getenv("FLY_API_TOKEN")
+		if apiToken == "" {
+			apiToken = os.Getenv("FLY_API_TOKEN")
+		}
+
+		if apiToken == "" {
+			fmt.Println("give a value --api-token or set the environment variable \"FLY_API_TOKEN\"")
+			return nil
+		}
 
 		provisioner, err := provision.NewFlyProvisioner(apiToken, org, region)
 		if err != nil {
