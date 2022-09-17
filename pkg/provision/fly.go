@@ -11,6 +11,7 @@ import (
 	cp "github.com/inlets/cloud-provision/provision"
 	"github.com/jsiebens/inlets-on-fly/pkg/wg"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -63,9 +64,48 @@ func (p *FlyProvisioner) Close() {
 func (p *FlyProvisioner) Provision(host cp.BasicHost) (*cp.ProvisionedHost, error) {
 	ctx := context.Background()
 
+	tcp := host.Additional["inlets-tcp"] == "true"
 	token := host.Additional["inlets-token"]
 	version := host.Additional["inlets-version"]
 	name := host.Name
+
+	var mode = "http"
+	var services = []apiv1.Service{
+		{
+			Ports: []apiv1.Port{
+				{Port: 8123, Handlers: []string{}},
+			},
+			Protocol:     "tcp",
+			InternalPort: 8123,
+		},
+	}
+
+	if tcp {
+		mode = "tcp"
+		ports := strings.Split(host.Additional["inlets-ports"], ",")
+		for _, p := range ports {
+			i, err := strconv.ParseInt(p, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			services = append(services, apiv1.Service{
+				Ports: []apiv1.Port{
+					{Port: i, Handlers: []string{}},
+				},
+				Protocol:     "tcp",
+				InternalPort: i,
+			})
+		}
+	} else {
+		services = append(services, apiv1.Service{
+			Ports: []apiv1.Port{
+				{Port: 80, Handlers: []string{"http"}},
+				{Port: 443, Handlers: []string{"tls", "http"}},
+			},
+			Protocol:     "tcp",
+			InternalPort: 8000,
+		})
+	}
 
 	if _, err := graphql.CreateAppMutation(ctx, p.graphqlClt, name, p.orgId); err != nil {
 		return nil, err
@@ -86,28 +126,12 @@ func (p *FlyProvisioner) Provision(host cp.BasicHost) (*cp.ProvisionedHost, erro
 			Init: apiv1.InitConfig{
 				Entrypoint: []string{"inlets-pro"},
 				Cmd: []string{
-					"http", "server",
+					mode, "server",
 					"--auto-tls-san", fmt.Sprintf("%s.fly.dev", name),
 					"--token", token,
 				},
 			},
-			Services: []apiv1.Service{
-				{
-					Ports: []apiv1.Port{
-						{Port: 8123, Handlers: []string{}},
-					},
-					Protocol:     "tcp",
-					InternalPort: 8123,
-				},
-				{
-					Ports: []apiv1.Port{
-						{Port: 80, Handlers: []string{"http"}},
-						{Port: 443, Handlers: []string{"tls", "http"}},
-					},
-					Protocol:     "tcp",
-					InternalPort: 8000,
-				},
-			},
+			Services: services,
 			Guest: apiv1.GuestConfig{
 				Cpus:     1,
 				MemoryMb: 256,

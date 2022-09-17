@@ -8,6 +8,7 @@ import (
 	"github.com/sethvargo/go-password/password"
 	"github.com/spf13/cobra"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -35,11 +36,15 @@ func createCommand() *cobra.Command {
 	var name string
 	var org string
 	var region string
+	var tcp bool
+	var ports []string
 
 	command.Flags().StringVar(&name, "name", "", "")
 	command.Flags().StringVar(&org, "org", "", "")
 	command.Flags().StringVar(&region, "region", "ams", "")
 	command.Flags().StringVar(&apiToken, "api-token", "", "")
+	command.Flags().BoolVar(&tcp, "tcp", false, "")
+	command.Flags().StringSliceVar(&ports, "port", []string{}, "")
 
 	command.RunE = func(command *cobra.Command, args []string) error {
 		inletsVersion := "0.9.9"
@@ -53,15 +58,25 @@ func createCommand() *cobra.Command {
 			return nil
 		}
 
+		if tcp && len(ports) == 0 {
+			return fmt.Errorf("at least one --port is required when creating a TCP exit node")
+		}
+
 		token, err := password.Generate(64, 10, 0, false, true)
 		if err != nil {
 			return err
 		}
 
+		if name == "" {
+			name = names.GetRandomName()
+		}
+
 		hostReq := &cp.BasicHost{
 			Region: region,
-			Name:   names.GetRandomName(),
+			Name:   name,
 			Additional: map[string]string{
+				"inlets-tcp":     fmt.Sprintf("%v", tcp),
+				"inlets-ports":   strings.Join(ports, ","),
 				"inlets-token":   token,
 				"inlets-version": inletsVersion,
 			},
@@ -94,8 +109,39 @@ func createCommand() *cobra.Command {
 				i+1, max, hostStatus.ID, hostStatus.Status)
 
 			if hostStatus.Status == "active" {
+				if tcp {
+					fmt.Printf(`inlets Pro TCP (%s) server summary:
+  IP: %s
+  Auth-token: %s
 
-				fmt.Printf(`inlets Pro HTTPS (%s) server summary:
+Command:
+
+# Obtain a license at https://inlets.dev/pricing
+# Store it at $HOME/.inlets/LICENSE or use --help for more options
+
+# Give a single value or comma-separated
+export PORTS="8000"
+
+# Where to route traffic from the inlets server
+export UPSTREAM="localhost"
+
+inlets-pro tcp client --url "wss://%s:%d" \
+  --token "%s" \
+  --upstream $UPSTREAM \
+  --ports $PORTS
+
+To delete:
+  inlets-on-fly delete --id "%s"
+`,
+						inletsVersion,
+						hostStatus.IP,
+						token,
+						hostStatus.IP,
+						8123,
+						token,
+						hostStatus.ID)
+				} else {
+					fmt.Printf(`inlets Pro HTTPS (%s) server summary:
   IP: %s
   HTTPS Domains: %v
   Auth-token: %s
@@ -115,14 +161,15 @@ inlets-pro http client --url "wss://%s:%d" \
 To delete:
   inlets-on-fly delete --id "%s"
 `,
-					inletsVersion,
-					hostStatus.IP,
-					fmt.Sprintf("%s.fly.dev", name),
-					token,
-					hostStatus.IP,
-					8123,
-					token,
-					hostStatus.ID)
+						inletsVersion,
+						hostStatus.IP,
+						fmt.Sprintf("%s.fly.dev", name),
+						token,
+						hostStatus.IP,
+						8123,
+						token,
+						hostStatus.ID)
+				}
 
 				return nil
 			}
